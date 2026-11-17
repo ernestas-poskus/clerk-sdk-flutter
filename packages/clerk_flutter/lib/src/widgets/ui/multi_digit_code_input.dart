@@ -45,6 +45,7 @@ class _MultiDigitCodeInputState extends State<MultiDigitCodeInput>
   late FocusNode _focusNode;
   TextInputConnection? _connection;
   AutofillGroupState? _currentAutofillScope;
+  OverlayEntry? _contextMenuEntry;
 
   bool loading = false;
 
@@ -141,6 +142,7 @@ class _MultiDigitCodeInputState extends State<MultiDigitCodeInput>
 
   @override
   void dispose() {
+    _hideContextMenu();
     HardwareKeyboard.instance.removeHandler(_onHwKeyChanged);
     _currentAutofillScope?.unregister(autofillId);
     if (widget.focusNode == null) {
@@ -153,15 +155,69 @@ class _MultiDigitCodeInputState extends State<MultiDigitCodeInput>
 
   @override
   void autofill(TextEditingValue newEditingValue) {
-    final value = int.tryParse(newEditingValue.text)?.toString();
-    if (value != null) {
-      setState(() {
-        _editingValue = TextEditingValue(
-          text: value,
-          selection: TextSelection.collapsed(offset: value.length),
-        );
-      });
+    _handleNewInput(newEditingValue.text);
+  }
+
+  void _handleNewInput(String input) {
+    final digitsOnly = input.replaceAll(RegExp(r'\D'), '');
+    if (digitsOnly.isEmpty) return;
+
+    final code = digitsOnly.length > widget.length
+        ? digitsOnly.substring(0, widget.length)
+        : digitsOnly;
+
+    updateEditingValue(
+      TextEditingValue(
+        text: code,
+        selection: TextSelection.collapsed(offset: code.length),
+      ),
+    );
+  }
+
+  Future<void> _pasteFromClipboard() async {
+    final data = await Clipboard.getData(Clipboard.kTextPlain);
+    final text = data?.text;
+    if (text != null && text.isNotEmpty) {
+      _handleNewInput(text);
     }
+  }
+
+  void _showContextMenu(Offset globalPosition) {
+    _hideContextMenu();
+    final overlay = Overlay.maybeOf(context);
+    if (overlay == null) return;
+
+    _contextMenuEntry = OverlayEntry(
+      builder: (context) => Stack(
+        children: [
+          Positioned.fill(
+            child: GestureDetector(
+              behavior: HitTestBehavior.translucent,
+              onTap: _hideContextMenu,
+            ),
+          ),
+          AdaptiveTextSelectionToolbar.buttonItems(
+            anchors: TextSelectionToolbarAnchors(primaryAnchor: globalPosition),
+            buttonItems: [
+              ContextMenuButtonItem(
+                onPressed: () {
+                  _hideContextMenu();
+                  _pasteFromClipboard();
+                },
+                type: ContextMenuButtonType.paste,
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+
+    overlay.insert(_contextMenuEntry!);
+  }
+
+  void _hideContextMenu() {
+    _contextMenuEntry?.remove();
+    _contextMenuEntry = null;
   }
 
   bool _hasCursor(int i) {
@@ -185,21 +241,42 @@ class _MultiDigitCodeInputState extends State<MultiDigitCodeInput>
 
   @override
   Widget build(BuildContext context) {
-    return Focus(
-      focusNode: _focusNode,
-      child: GestureDetector(
-        behavior: HitTestBehavior.opaque,
-        onTap: requestKeyboard,
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            for (int i = 0; i < widget.length; ++i) //
-              _CodeDigit(
-                isSmall: widget.isSmall,
-                hasCursor: _hasCursor(i),
-                label: _labelFor(i),
-              ),
-          ],
+    return Actions(
+      actions: <Type, Action<Intent>>{
+        PasteTextIntent: CallbackAction<PasteTextIntent>(
+          onInvoke: (intent) {
+            _pasteFromClipboard();
+            return null;
+          },
+        ),
+      },
+      child: Focus(
+        focusNode: _focusNode,
+        child: GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: () {
+            _hideContextMenu();
+            requestKeyboard();
+          },
+          onLongPressStart: (details) {
+            requestKeyboard();
+            _showContextMenu(details.globalPosition);
+          },
+          onSecondaryTapUp: (details) {
+            requestKeyboard();
+            _showContextMenu(details.globalPosition);
+          },
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              for (int i = 0; i < widget.length; ++i) //
+                _CodeDigit(
+                  isSmall: widget.isSmall,
+                  hasCursor: _hasCursor(i),
+                  label: _labelFor(i),
+                ),
+            ],
+          ),
         ),
       ),
     );
@@ -212,7 +289,9 @@ class _MultiDigitCodeInputState extends State<MultiDigitCodeInput>
 
   void _openInputConnection() {
     if (!_hasInputConnection) {
-      _connection = TextInput.attach(this, textInputConfiguration);
+      _connection =
+          _currentAutofillScope?.attach(this, textInputConfiguration) ??
+              TextInput.attach(this, textInputConfiguration);
       _connection!.setEditingState(_editingValue);
     }
     _connection!.show();
@@ -302,7 +381,13 @@ class _MultiDigitCodeInputState extends State<MultiDigitCodeInput>
 
   @override
   void showToolbar() {
-    // Not required
+    final renderBox = context.findRenderObject() as RenderBox?;
+    if (renderBox != null && renderBox.hasSize) {
+      final position = renderBox.localToGlobal(
+        Offset(renderBox.size.width / 2, 0),
+      );
+      _showContextMenu(position);
+    }
   }
 }
 

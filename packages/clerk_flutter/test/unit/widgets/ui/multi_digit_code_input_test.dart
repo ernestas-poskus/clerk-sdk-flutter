@@ -1,6 +1,7 @@
 import 'package:clerk_flutter/clerk_flutter.dart';
 import 'package:clerk_flutter/src/widgets/ui/multi_digit_code_input.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import '../../../test_support/test_support.dart';
@@ -178,6 +179,29 @@ void main() {
       await tester.pump();
 
       expect(find.byType(DecoratedBox), findsNWidgets(8));
+    });
+
+    testWidgets('autofill sanitizes digits and submits code', (tester) async {
+      String? submittedCode;
+      await tester.pumpWidget(
+        TestClerkAuthWrapper(
+          authState: authState,
+          child: MultiDigitCodeInput(
+            onSubmit: (code) async {
+              submittedCode = code;
+              return true;
+            },
+            length: 6,
+          ),
+        ),
+      );
+      await tester.pump();
+
+      final state = tester.state(find.byType(MultiDigitCodeInput)) as dynamic;
+      state.autofill(const TextEditingValue(text: 'Code: 123-456!'));
+      await tester.pump();
+
+      expect(submittedCode, '123456');
     });
   });
 }
