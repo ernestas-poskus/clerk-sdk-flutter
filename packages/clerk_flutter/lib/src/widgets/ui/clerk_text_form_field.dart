@@ -29,6 +29,8 @@ class ClerkTextFormField extends StatelessWidget {
     this.autofillHints,
     this.keyboardType,
     this.textInputAction,
+    this.autocorrect,
+    this.enableSuggestions,
   });
 
   /// Report changes back to calling widget
@@ -83,6 +85,12 @@ class ClerkTextFormField extends StatelessWidget {
   /// The type of action button to use for the keyboard
   final TextInputAction? textInputAction;
 
+  /// Whether to enable autocorrection
+  final bool? autocorrect;
+
+  /// Whether to show input suggestions
+  final bool? enableSuggestions;
+
   @override
   Widget build(BuildContext context) {
     return Column(
@@ -110,6 +118,8 @@ class ClerkTextFormField extends StatelessWidget {
           autofillHints: autofillHints,
           keyboardType: keyboardType,
           textInputAction: textInputAction,
+          autocorrect: autocorrect,
+          enableSuggestions: enableSuggestions,
         ),
       ],
     );
@@ -131,6 +141,8 @@ class _TextField extends StatefulWidget {
     this.autofillHints,
     this.keyboardType,
     this.textInputAction,
+    this.autocorrect,
+    this.enableSuggestions,
   });
 
   final ValueChanged<String>? onChanged;
@@ -146,6 +158,8 @@ class _TextField extends StatefulWidget {
   final Iterable<String>? autofillHints;
   final TextInputType? keyboardType;
   final TextInputAction? textInputAction;
+  final bool? autocorrect;
+  final bool? enableSuggestions;
 
   List<TextInputFormatter>? get inputFormatters => switch (inputFormatter) {
         TextInputFormatter formatter => [formatter],
@@ -178,6 +192,17 @@ class _TextFieldState extends State<_TextField> {
       autofillHints: widget.autofillHints,
       keyboardType: widget.keyboardType,
       textInputAction: widget.textInputAction,
+      autocorrect: widget.autocorrect ??
+          (widget.obscureText == true ||
+                  widget.keyboardType == TextInputType.emailAddress ||
+                  widget.keyboardType == TextInputType.visiblePassword
+              ? false
+              : true),
+      enableSuggestions: widget.enableSuggestions ??
+          (widget.obscureText == true ||
+                  widget.keyboardType == TextInputType.visiblePassword
+              ? false
+              : true),
       style: themeExtension.styles.inputText.copyWith(
         color:
             _valid ? themeExtension.colors.text : themeExtension.colors.error,

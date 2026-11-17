@@ -7,6 +7,7 @@ import 'package:clerk_flutter/src/widgets/ui/clerk_phone_number_form_field.dart'
 import 'package:clerk_flutter/src/widgets/ui/clerk_text_form_field.dart';
 import 'package:clerk_flutter/src/widgets/ui/closeable.dart';
 import 'package:clerk_flutter/src/widgets/ui/common.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:phone_input/phone_input_package.dart';
 
@@ -26,6 +27,7 @@ class ClerkIdentifierInput extends StatefulWidget {
     this.onSubmit,
     this.autofillHints,
     this.keyboardType,
+    this.textInputAction,
   });
 
   /// The method to call when the input text changes
@@ -48,6 +50,9 @@ class ClerkIdentifierInput extends StatefulWidget {
 
   /// Optional keyboard type for the text field
   final TextInputType? keyboardType;
+
+  /// Optional text input action
+  final TextInputAction? textInputAction;
 
   @override
   State<ClerkIdentifierInput> createState() => _ClerkIdentifierInputState();
@@ -191,6 +196,7 @@ class _ClerkIdentifierInputState extends State<ClerkIdentifierInput> {
               ),
               autofillHints: widget.autofillHints ?? defaultHints,
               keyboardType: widget.keyboardType ?? defaultKeyboardType,
+              textInputAction: widget.textInputAction,
               onChanged: (ident) => _onChanged(Identifier(ident)),
               onSubmit: _onSubmit,
               focusNode: _emailFocusNode,

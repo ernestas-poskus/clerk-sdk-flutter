@@ -234,6 +234,7 @@ class _ClerkSignInPanelState extends State<ClerkSignInPanel>
             builder: (context) => ClerkIdentifierInput(
               initialValue: _identifier,
               strategies: env.identificationStrategies.toList(),
+              textInputAction: TextInputAction.next,
               // iOS uses only the first hint; `username` marks this as the
               // login identifier for Password AutoFill.
               autofillHints: const [
@@ -286,12 +287,30 @@ class _ClerkSignInPanelState extends State<ClerkSignInPanel>
             ),
           ),
 
+          // Hidden password field mounted when entering identifier so platform
+          // autofill services (like iOS Password AutoFill) detect an associated
+          // username+password pair and suggest stored credentials immediately.
+          if (showIdentifierInput &&
+              env.config.firstFactors.any((s) => s.isPassword))
+            Offstage(
+              offstage: true,
+              child: ExcludeFocus(
+                child: ClerkTextFormField(
+                  key: const Key('offstagePasswordInput'),
+                  obscureText: true,
+                  autofillHints: const [AutofillHints.password],
+                  onChanged: _updatePassword,
+                ),
+              ),
+            ),
+
           // Factors for first stage
           Openable(
             open: showFirstFactors,
             child: _FactorList(
               key: const Key('firstFactors'),
               factors: firstFactors,
+              initialPassword: _password.isNotEmpty ? _password : null,
               onPasswordChanged: _updatePassword,
               onSubmit: (strategy) => _continue(authState, strategy: strategy),
             ),
@@ -476,6 +495,7 @@ class _FactorList extends StatelessWidget {
     required this.factors,
     required this.onSubmit,
     this.onPasswordChanged,
+    this.initialPassword,
   });
 
   final List<clerk.Factor> factors;
@@ -483,6 +503,8 @@ class _FactorList extends StatelessWidget {
   final ValueChanged<clerk.Strategy> onSubmit;
 
   final ValueChanged<String>? onPasswordChanged;
+
+  final String? initialPassword;
 
   Future<void> _openPasswordResetFlow(BuildContext context) async {
     await ClerkForgottenPasswordPanel.show(context);
@@ -505,10 +527,12 @@ class _FactorList extends StatelessWidget {
           Padding(
             padding: topPadding8 + bottomPadding2,
             child: ClerkTextFormField(
+              initial: initialPassword,
               label: l10ns.password,
               hint: l10ns.enterYourPassword,
               obscureText: true,
               autofillHints: const [AutofillHints.password],
+              textInputAction: TextInputAction.done,
               onChanged: onPasswordChanged,
               onSubmit: (_) => onSubmit(clerk.Strategy.password),
               trailing: canResetPassword

@@ -48,7 +48,12 @@ class _ClerkAuthenticationState extends State<ClerkAuthentication>
     if (authState.isNotAvailable) {
       // We have no environment, implying ClerkAuth has not been initialised
       // or initialisation has failed (no connectivity?).
-      return emptyWidget;
+      return const Center(
+        child: Padding(
+          padding: allPadding32,
+          child: defaultLoadingWidget,
+        ),
+      );
     }
 
     final display = ClerkAuth.displayConfigOf(context);
